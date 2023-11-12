@@ -140,8 +140,12 @@
                     }
 
                     myPlayer.r += keyPress.horizontal * charcter_speed;
+                    if (myPlayer.r < 0) myPlayer.r = 0;
+                    if (myPlayer.r > canvas.width) myPlayer.r = canvas.width;
                     myPlayer.c += keyPress.vertical * charcter_speed;
-                    console.log(myPlayer.r, myPlayer.c);
+                    if (myPlayer.c < 0) myPlayer.c = 0;
+                    if (myPlayer.c > canvas.height - 5) myPlayer.c = canvas.height - 5;
+                    socket_send({event: "player_move", data: {id: myPlayer.session_id, r: myPlayer.r, c: myPlayer.c}})
                     context.beginPath();
                     context.arc(myPlayer.r, myPlayer.c, 10, 0, Math.PI * 2);
                     context.fillStyle = myPlayer.color;
