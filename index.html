@@ -153,8 +153,8 @@
 
 
                     for (let i of playerIdSet) {
-                        let temp_r = Math.floor(playerInfo[i].r / block_width);
-                        let temp_c = Math.floor(playerInfo[i].c / block_height);
+                        let temp_r = playerInfo[i].rBlock;
+                        let temp_c = playerInfo[i].cBlock;
                         context.fillStyle = "rgba(0, 0, 0, 0.5)";
                         context.fillRect(temp_r * block_width + 1, temp_c * block_height + 1, block_width - 2, block_height - 2);
                     }
