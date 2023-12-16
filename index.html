@@ -67,6 +67,8 @@
         var canvas_set = {
         }
 
+        var mineBoard;
+
         var keyPress = {
             horizontal: 0,
             vertical: 0,
@@ -85,10 +87,10 @@
     <script>
         // var host_url = window.versions.host();
         // var socket_url = window.versions.socket();
-        // var host_url = "http://localhost:9999/api"
-        // var socket_url = "ws://localhost:9999/api/socket"
-        var host_url = "https://minesweeping.duckdns.org/api"
-        var socket_url = "wss://minesweeping.duckdns.org/api/socket"
+        var host_url = "http://localhost:9999/api"
+        var socket_url = "ws://localhost:9999/api/socket"
+        // var host_url = "https://minesweeping.duckdns.org/api"
+        // var socket_url = "wss://minesweeping.duckdns.org/api/socket"
 
         // console.log(host_url);
         // console.log(socket_url);
@@ -116,20 +118,23 @@
                     playerInfo[value.session_id] = new Player(value.session_id, value.r, value.c, "blue", value.rBlock, value.cBlock);
                     socket_send({ event: "welcome_you", data: { id: value.session_id, r: myPlayer.r, c: myPlayer.c, rBlock: myPlayer.rBlock, cBlock: myPlayer.cBlock } });
                 } else if (code == "take_position") {
-                    console.log("친구 정보 : ", value)
+                    // console.log("친구 정보 : ", value)
                     playerIdSet.add(value.session_id);
                     playerInfo[value.session_id] = new Player(value.session_id, value.r, value.c, "blue", value.rBlock, value.cBlock)
                 } else if (code == "player_disconnect") {
                     console.log("끊긴 친구 정보 : ", value);
                     playerIdSet.delete(value.id);
                     delete playerInfo[value.id]
+                } else if (code == "get_board") {
+                    mineBoard = value.board;
                 }
             }
             conn.onopen = async () => {
                 console.log("연결 성공!");
-                var mineBoard;
+                
                 await axios.get(host_url + '/mineBoard').then((r) => {
                     mineBoard = r.data;
+                    console.log(mineBoard);
                     canvas_set["height"] = canvas.height / mineBoard.length;
                     canvas_set["width"] = canvas.width / mineBoard[0].length;
                     myPlayer = new Player(undefined, canvas.width / 2, canvas.height / 2, "green", Math.floor((canvas.width / 2) / canvas_set.width), Math.floor((canvas.height / 2) / canvas_set.height));
@@ -144,10 +149,30 @@
 
                     for (let i = 0; i < mineBoard.length; i++) {
                         for (let j = 0; j < mineBoard[i].length; j++) {
-                            // console.log(i, j);
-                            if (i % 10 == 4 || i % 10 == 9 || j % 10 == 4 || j % 10 == 9) context.fillStyle = "rgba(0, 0, 0, 0.5)";
-                            else context.fillStyle = "rgba(0, 0, 0, 0.3)";
-                            context.fillRect(j * block_width + 1, i * block_height + 1, block_width - 2, block_height - 2)
+                            if (mineBoard[i][j].opened) {
+                                context.fillStyle = "rgba(200, 0, 0, 0.4)"
+                                context.fillRect(j * block_width + 1, i * block_height + 1, block_width - 2, block_height - 2);
+                                let block_mine_count = mineBoard[i][j].count;
+                                if (block_mine_count > 0) { 
+                                    context.font = '10px Arial';
+                                    context.fillStyle = 'black';
+                                    context.fillText(mineBoard[i][j].count, j * block_width + 1 + canvas_set.width/2, i * block_height + 1 + canvas_set.height/2);
+                                }
+                            } else {
+                                if (i % 10 == 4 || i % 10 == 9 || j % 10 == 4 || j % 10 == 9) context.fillStyle = "rgba(0, 0, 0, 0.4)";
+                                else context.fillStyle = "rgba(0, 0, 0, 0.3)";
+                                context.fillRect(j * block_width + 1, i * block_height + 1, block_width - 2, block_height - 2)
+                            }
+
+                            // if (!mineBoard[i][j].hasMine) {
+                            //     context.font = '10px Arial';
+                            //     context.fillStyle = 'black';
+                            //     context.fillText(mineBoard[i][j].count, j * block_width + 1 + canvas_set.width/2, i * block_height + 1 + canvas_set.height/2);
+                            // } else {
+                            //     context.font = '10px Arial';
+                            //     context.fillStyle = 'black';
+                            //     context.fillText("*", j * block_width + 1 + canvas_set.width/2, i * block_height + 1 + canvas_set.height/2);
+                            // }
                         }
                     }
 
@@ -171,10 +196,13 @@
 
                     myPlayer.r += keyPress.horizontal * charcter_speed;
                     if (myPlayer.r < 0) myPlayer.r = 0;
-                    if (myPlayer.r > canvas.width) myPlayer.r = canvas.width;
+                    if (myPlayer.r > canvas.width - 1) myPlayer.r = canvas.width - 1;
                     myPlayer.c += keyPress.vertical * charcter_speed;
                     if (myPlayer.c < 0) myPlayer.c = 0;
-                    if (myPlayer.c > canvas.height) myPlayer.c = canvas.height;
+                    if (myPlayer.c > canvas.height - 1) myPlayer.c = canvas.height - 1;
+                    myPlayer.rBlock = Math.floor(myPlayer.r / block_width);
+                    myPlayer.cBlock = Math.floor(myPlayer.c / block_height);
+
                     if (myPlayer.session_id != undefined)
                         socket_send({ event: "player_move", data: { id: myPlayer.session_id, r: myPlayer.r, c: myPlayer.c, rBlock: Math.floor(myPlayer.r / block_width), cBlock: Math.floor(myPlayer.c / block_height) } })
                     context.beginPath();
@@ -193,46 +221,47 @@
                     socket_init();
                 }, 500);
             }
-
+            document.addEventListener("keydown", (event) => {
+                // console.log("새로운 키가 눌렸어요: ", event);
+                if (event.code === "ArrowRight") {
+                    if (keyPress.horizontal == 1) return;
+                    keyPress.horizontal += 1;
+                } else if (event.code === "ArrowLeft") {
+                    if (keyPress.horizontal == -1) return;
+                    keyPress.horizontal -= 1;
+                } else if (event.code === "ArrowUp") {
+                    if (keyPress.vertical == -1) return;
+                    keyPress.vertical -= 1;
+                } else if (event.code === "ArrowDown") {
+                    if (keyPress.vertical == 1) return;
+                    keyPress.vertical += 1;
+                } else if (event.code === "ControlLeft") {
+                    charcter_speed = default_speed / 5;
+                } else if (event.code === "Space") {
+                    console.log(myPlayer.rBlock, myPlayer.cBlock);
+                    socket_send({ event: "spade_work", data: { id: myPlayer.session_id, rBlock: myPlayer.rBlock, cBlock: myPlayer.cBlock } })
+                }
+                else {
+                    // console.log("새로운 키가 눌렸어요");
+                }
+            });
+            document.addEventListener("keyup", (event) => {
+                if (event.code === "ArrowRight") {
+                    keyPress.horizontal -= 1;
+                } else if (event.code === "ArrowLeft") {
+                    keyPress.horizontal += 1;
+                } else if (event.code === "ArrowUp") {
+                    keyPress.vertical += 1;
+                } else if (event.code === "ArrowDown") {
+                    keyPress.vertical -= 1;
+                } else if (event.code === "ControlLeft") {
+                    charcter_speed = default_speed;
+                }
+            });
         }
         socket_init();
 
-        document.addEventListener("keydown", (event) => {
-            // console.log("새로운 키가 눌렸어요: ", event);
-            if (event.code === "ArrowRight") {
-                if (keyPress.horizontal == 1) return;
-                keyPress.horizontal += 1;
-            } else if (event.code === "ArrowLeft") {
-                if (keyPress.horizontal == -1) return;
-                keyPress.horizontal -= 1;
-            } else if (event.code === "ArrowUp") {
-                if (keyPress.vertical == -1) return;
-                keyPress.vertical -= 1;
-            } else if (event.code === "ArrowDown") {
-                if (keyPress.vertical == 1) return;
-                keyPress.vertical += 1;
-            } else if (event.code === "ControlLeft") {
-                charcter_speed = default_speed / 5;
-            } else if (event.code === "Space") {
-                console.log(Math.floor(myPlayer.r / canvas_set.width), Math.floor(myPlayer.c / canvas_set.height))
-            }
-            else {
-                // console.log("새로운 키가 눌렸어요");
-            }
-        });
-        document.addEventListener("keyup", (event) => {
-            if (event.code === "ArrowRight") {
-                keyPress.horizontal -= 1;
-            } else if (event.code === "ArrowLeft") {
-                keyPress.horizontal += 1;
-            } else if (event.code === "ArrowUp") {
-                keyPress.vertical += 1;
-            } else if (event.code === "ArrowDown") {
-                keyPress.vertical -= 1;
-            } else if (event.code === "ControlLeft") {
-                charcter_speed = default_speed;
-            }
-        });
+
 
     </script>
 </body>
