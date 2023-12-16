@@ -51,11 +51,13 @@
     </div>
     <script>
         class Player {
-            constructor(session_id, r, c, color) {
+            constructor(session_id, r, c, color, rBlock, cBlock) {
                 this.session_id = session_id;
                 this.r = r;
                 this.c = c;
                 this.color = color;
+                this.rBlock = rBlock;
+                this.cBlock = cBlock;
             }
         }
         var myPlayer;
@@ -114,9 +116,10 @@
                     playerInfo[value.session_id] = new Player(value.session_id, value.r, value.c, "blue");
                     socket_send({ event: "welcome_you", data: { id: value.session_id, r: myPlayer.r, c: myPlayer.c } });
                 } else if (code == "take_position") {
-                    // console.log("친구 정보 : ", value)
+                    console.log("친구 정보 : ", value)
+                    console.log(canvas_set["width"]);
                     playerIdSet.add(value.session_id);
-                    playerInfo[value.session_id] = new Player(value.session_id, value.r, value.c, "blue")
+                    playerInfo[value.session_id] = new Player(value.session_id, value.r, value.c, "blue", value.rBlock, value.cBlock)
                 } else if (code == "player_disconnect") {
                     console.log("끊긴 친구 정보 : ", value);
                     playerIdSet.delete(value.id);
@@ -172,7 +175,7 @@
                     myPlayer.c += keyPress.vertical * charcter_speed;
                     if (myPlayer.c < 0) myPlayer.c = 0;
                     if (myPlayer.c > canvas.height) myPlayer.c = canvas.height;
-                    socket_send({ event: "player_move", data: { id: myPlayer.session_id, r: myPlayer.r, c: myPlayer.c } })
+                    socket_send({ event: "player_move", data: { id: myPlayer.session_id, r: myPlayer.r, c: myPlayer.c, rBlock: Math.floor(myPlayer.r / block_width), cBlock: Math.floor(myPlayer.c / block_height) } })
                     context.beginPath();
                     context.arc(myPlayer.r, myPlayer.c, 10, 0, Math.PI * 2);
                     context.fillStyle = myPlayer.color;
@@ -180,8 +183,6 @@
                     requestAnimationFrame(draw);
                 }
                 draw();
-
-
             }
 
             conn.onclose = () => {
@@ -196,7 +197,7 @@
         socket_init();
 
         document.addEventListener("keydown", (event) => {
-            console.log("새로운 키가 눌렸어요: ", event);
+            // console.log("새로운 키가 눌렸어요: ", event);
             if (event.code === "ArrowRight") {
                 if (keyPress.horizontal == 1) return;
                 keyPress.horizontal += 1;
@@ -215,7 +216,7 @@
                 console.log(Math.floor(myPlayer.r / canvas_set.width), Math.floor(myPlayer.c / canvas_set.height))
             }
             else {
-                console.log("새로운 키가 눌렸어요");
+                // console.log("새로운 키가 눌렸어요");
             }
         });
         document.addEventListener("keyup", (event) => {
