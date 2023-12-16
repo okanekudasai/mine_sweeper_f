@@ -57,7 +57,8 @@
             horizontal: 0,
             vertical: 0,
         }
-        var charcter_speed=10;
+        var default_speed = 10;
+        var charcter_speed = default_speed;
 
         var canvas = document.getElementById("canvas");
         canvas.width = game_container.clientWidth;
@@ -70,10 +71,10 @@
     <script>
         // var host_url = window.versions.host();
         // var socket_url = window.versions.socket();
-        var host_url = "http://localhost:9999/api"
-        var socket_url = "ws://localhost:9999/api/socket"
-        // var host_url = "https://minesweeping.duckdns.org/api"
-        // var socket_url = "wss://minesweeping.duckdns.org/api/socket"
+        // var host_url = "http://localhost:9999/api"
+        // var socket_url = "ws://localhost:9999/api/socket"
+        var host_url = "https://minesweeping.duckdns.org/api"
+        var socket_url = "wss://minesweeping.duckdns.org/api/socket"
 
         // console.log(host_url);
         // console.log(socket_url);
@@ -84,7 +85,7 @@
             }
             conn.onmessage = async (msg) => {
                 var dto = JSON.parse(msg.data);
-                console.log(dto);
+                // console.log(dto);
                 var code = dto.code;
                 var value = dto.value;
                 if (code == "ping") {
@@ -101,7 +102,7 @@
                     playerInfo[value.session_id] = new Player(value.session_id, value.r, value.c, "blue");
                     socket_send({event: "welcome_you", data: {id: value.session_id, r: myPlayer.r, c: myPlayer.c}});
                 } else if (code == "take_position") {
-                    console.log("친구 정보 : ", value)
+                    // console.log("친구 정보 : ", value)
                     playerIdSet.add(value.session_id);
                     playerInfo[value.session_id] = new Player(value.session_id, value.r, value.c, "blue")
                 } else if (code == "player_disconnect") {
@@ -123,15 +124,27 @@
                     
                     var block_width = canvas.width / mineBoard[0].length;
                     var block_height = canvas.height / mineBoard.length;
-                    
+
                     for (let i = 0; i < mineBoard.length; i++) {
                         for (let j = 0; j < mineBoard[i].length; j++) {
                             // console.log(i, j);
-                            if (i % 10 == 4 || i % 10 == 9 || j % 10 == 4 || j % 10 == 9) context.fillStyle = "red";
-                            else context.fillStyle = "black";
+                            if (i % 10 == 4 || i % 10 == 9 || j % 10 == 4 || j % 10 == 9) context.fillStyle = "rgba(0, 0, 0, 0.5)";
+                            else context.fillStyle = "rgba(0, 0, 0, 0.3)";
                             context.fillRect(j * block_width+1, i*block_height+1, block_width-2, block_height-2)
                         }
                     }
+
+                    
+                    for (let i of playerIdSet) {
+                        let temp_r = Math.floor(playerInfo[i].r / block_width);
+                        let temp_c = Math.floor(playerInfo[i].c / block_height);
+                        context.fillStyle = "rgba(0, 0, 0, 0.5)";
+                        context.fillRect(temp_r * block_width+1, temp_c * block_height+1, block_width-2, block_height-2);
+                    }
+
+                    context.fillStyle = "aqua";
+                    context.fillRect(Math.floor(myPlayer.r / block_width) * block_width+1, Math.floor(myPlayer.c / block_height) * block_height+1, block_width-2, block_height-2);
+
                     for (let i of playerIdSet) {
                         context.beginPath();
                         context.arc(playerInfo[i].r, playerInfo[i].c, 10, 0, Math.PI * 2);
@@ -144,7 +157,7 @@
                     if (myPlayer.r > canvas.width) myPlayer.r = canvas.width;
                     myPlayer.c += keyPress.vertical * charcter_speed;
                     if (myPlayer.c < 0) myPlayer.c = 0;
-                    if (myPlayer.c > canvas.height - 5) myPlayer.c = canvas.height - 5;
+                    if (myPlayer.c > canvas.height) myPlayer.c = canvas.height;
                     socket_send({event: "player_move", data: {id: myPlayer.session_id, r: myPlayer.r, c: myPlayer.c}})
                     context.beginPath();
                     context.arc(myPlayer.r, myPlayer.c, 10, 0, Math.PI * 2);
@@ -178,7 +191,11 @@
             } else if (event.key === "ArrowDown") {
                 if (keyPress.vertical == 1) return;
                 keyPress.vertical += 1;
-            } 
+            } else if (event.key === "Control") {
+                charcter_speed = default_speed / 5;
+            } else {
+                console.log("새로운 키가 눌렸어요: ", event);
+            }
         });
         document.addEventListener("keyup", (event) => {
             if (event.key === "ArrowRight") {
@@ -189,6 +206,8 @@
                 keyPress.vertical += 1;
             } else if (event.key === "ArrowDown") {
                 keyPress.vertical -= 1;
+            } else if (event.key === "Control") {
+                charcter_speed = default_speed;
             } 
         });
         
